@@ -32,7 +32,7 @@ def generate_report(event, created, modified, history_diff):
         components_dict[obj[0]] = obj[1]
         components_dict[obj[0].replace('-', ':')] = obj[1]
 
-    lines.append(f"🛍 {event['triggered_by']['handle']} published <a href='{FigmaAPI.FIGMA_WEB}/{file_key}'>{event['file_name']} library</a>")
+    lines.append(f"🛍 {event['triggered_by']['handle']} published <a href='{FigmaAPI.FIGMA_WEB}/{file_key}'>{event['file_name']}</a>")
     
     if event['description'] != "":
         lines.append(f"\n<blockquote>{event['description']}</blockquote>")
@@ -66,7 +66,7 @@ def generate_report(event, created, modified, history_diff):
             changes.append(f"- Set <a href='{FigmaAPI.FIGMA_WEB}/{file_key}?node-id={component['value'][0]}'>{component['value'][1]}</a> on path <i>{component['path']}</i>")
     for component in history_diff['value_changes']:
         component["path"] = insert_link_to_path(component["path"])
-        if component['path'] == 'thumbnailUrl':
+        if component['path'] in ['thumbnailUrl', 'lastModified', 'version']:
             continue
         changes.append(f"- Change <i>{component['path']}</i> from {component['old']} to {component['new']}")
 
