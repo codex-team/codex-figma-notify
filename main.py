@@ -14,7 +14,7 @@ limit = 10
 changes_limit = 10
 figma_api = FigmaAPI.load_from_env()
 
-def generate_report(event, created, modified, history_diff):
+def generate_report(event, created, modified):
     def insert_link_to_path(path):
         nodes = re.findall(r'(\d+[-:]\d+)', path)
         for node in nodes:
@@ -51,29 +51,6 @@ def generate_report(event, created, modified, history_diff):
         if len(modified) > limit:
             lines.append(f"<u>and {len(modified)-limit} more</u>")
 
-    lines.append(f"\n<b>Changes</b>\n")
-
-    changes = []
-    for component in history_diff['dict:add']:
-        component["path"] = insert_link_to_path(component["path"])
-        changes.append(f"- Add <a href='{FigmaAPI.FIGMA_WEB}/{file_key}?node-id={component['value'][0]}'>{component['value'][1]}</a> on path <i>{component['path']}</i>")
-        
-    for component in history_diff['list:add']:
-        component["path"] = insert_link_to_path(component["path"])
-        if isinstance(component['value'], str):
-            changes.append(f"- Set {component['value']} on path <i>{component['path']}</i>")
-        else:
-            changes.append(f"- Set <a href='{FigmaAPI.FIGMA_WEB}/{file_key}?node-id={component['value'][0]}'>{component['value'][1]}</a> on path <i>{component['path']}</i>")
-    for component in history_diff['value_changes']:
-        component["path"] = insert_link_to_path(component["path"])
-        if component['path'] in ['thumbnailUrl', 'lastModified', 'version']:
-            continue
-        changes.append(f"- Change <i>{component['path']}</i> from {component['old']} to {component['new']}")
-
-    lines.extend(changes[:changes_limit])
-    if len(changes) > changes_limit:
-        lines.append(f"<u>and {len(changes)-changes_limit} more</u>")
-
     return "\n".join(lines)
 
 
@@ -99,25 +76,8 @@ def store_json():
     created = event_parser.created_components()
     modified = event_parser.modified_components()
 
-    component_ids = created['component_ids'] | modified['component_ids']
-
     if 'file_key' in event:
-        versions = figma_api.get_versions(event['file_key'])
-        history_new = figma_api.get_history(event['file_key'], list(component_ids), versions[0])
-        history_old = figma_api.get_history(event['file_key'], list(component_ids), versions[1])
-
-        with open(f"{prefix}-new.json", "w") as w:
-            w.write(json.dumps(history_new))
-
-        with open(f"{prefix}-old.json", "w") as w:
-            w.write(json.dumps(history_old))
-
-        diff_report = event_parser.generate_history_diff(history_old, history_new)
-
-        with open("{prefix}-diff.json", "w") as w:
-            w.write(json.dumps(diff_report))
-
-        message = generate_report(event, created['components'], modified['components'], diff_report)
+        message = generate_report(event, created['components'], modified['components'])
         with open("{prefix}-message.txt", "w") as w:
             w.write(message)
 
